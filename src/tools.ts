@@ -18,9 +18,21 @@ function asTextJson(value: unknown) {
 const taskParamsSchema = z.record(z.string(), z.unknown()).default({});
 const payloadSchema = z.record(z.string(), z.unknown()).default({});
 
+export const SERVER_NAME = "operit-mcp-bridge";
+
+export const REGISTERED_TOOLS = [
+  "submit_operit_task",
+  "get_operit_status",
+  "get_operit_screen_summary",
+  "start_page_monitor",
+  "stop_operit_task",
+  "operit_get_next_task",
+  "operit_report_status",
+] as const;
+
 export function createMcpServer(store: OperitStore): McpServer {
   const server = new McpServer({
-    name: "operit-mcp-bridge",
+    name: SERVER_NAME,
     version: "0.1.0",
   });
 

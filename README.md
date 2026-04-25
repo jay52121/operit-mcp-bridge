@@ -52,6 +52,35 @@ MCP endpoint: http://127.0.0.1:8787/mcp
 
 When binding to `0.0.0.0`, use your PC LAN IP from `ipconfig` for local phone testing. Do not use a local LAN IP for hosted deployment.
 
+## Production Mode Locally
+
+Build and run the same entrypoint that Koyeb, Render, or a VPS should use:
+
+```powershell
+npm run build
+npm start
+```
+
+Health check:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8787/health"
+```
+
+MCP debug info:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8787/debug/mcp-info"
+```
+
+If `BRIDGE_TOKEN` is set, HTTP API routes under `/api/*` require:
+
+```text
+Authorization: Bearer <token>
+```
+
+`/health` does not require a token so cloud platforms can run health checks.
+
 ## HTTP API
 
 ### Submit Task
@@ -189,6 +218,16 @@ For manual API testing after deployment:
 ```powershell
 Invoke-RestMethod "https://<your-koyeb-app>.koyeb.app/health"
 ```
+
+## Cloud Deployment Checklist
+
+- `npm run build` succeeds.
+- `npm start` starts the production server locally.
+- `/health` returns `{ "ok": true, "service": "operit-mcp-bridge" }`.
+- `/debug/mcp-info` shows the registered MCP tools.
+- GitHub has the deploy branch pushed, preferably `main`.
+- Cloud environment variables include `PORT` and, for protected HTTP API access, `BRIDGE_TOKEN`.
+- Operit and ChatGPT use the cloud HTTPS URL, not a local LAN IP.
 
 ## Task Model
 

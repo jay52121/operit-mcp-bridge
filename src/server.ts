@@ -3,18 +3,34 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import type { Request, Response } from "express";
 import { validateTaskSafety } from "./safety.js";
 import { MemoryOperitStore } from "./store.js";
-import { createMcpServer } from "./tools.js";
+import { createMcpServer, REGISTERED_TOOLS, SERVER_NAME } from "./tools.js";
 import { TASK_TYPES, type SubmitTaskInput, type TaskType } from "./types.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT || 8787);
 const DEVICE_ONLINE_WINDOW_MS = Number(process.env.DEVICE_ONLINE_WINDOW_MS ?? 30_000);
+const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN || "";
 
 const store = new MemoryOperitStore(DEVICE_ONLINE_WINDOW_MS);
 const app = createMcpExpressApp({ host: HOST });
 
 function jsonError(res: Response, statusCode: number, error: string) {
   res.status(statusCode).json({ ok: false, error });
+}
+
+function requireBridgeToken(req: Request, res: Response, next: () => void) {
+  if (!BRIDGE_TOKEN) {
+    next();
+    return;
+  }
+
+  const expected = `Bearer ${BRIDGE_TOKEN}`;
+  if (req.header("authorization") !== expected) {
+    jsonError(res, 401, "unauthorized");
+    return;
+  }
+
+  next();
 }
 
 function parseSubmitTaskInput(body: unknown): SubmitTaskInput | null {
@@ -45,6 +61,16 @@ function parseSubmitTaskInput(body: unknown): SubmitTaskInput | null {
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "operit-mcp-bridge" });
 });
+
+app.get("/debug/mcp-info", (_req, res) => {
+  res.json({
+    serverName: SERVER_NAME,
+    mcpEndpoint: "/mcp",
+    registeredTools: REGISTERED_TOOLS,
+  });
+});
+
+app.use("/api", requireBridgeToken);
 
 app.get("/api/next-task", (req, res) => {
   const deviceId = String(req.query.device_id ?? req.query.deviceId ?? "");
