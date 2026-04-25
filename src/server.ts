@@ -5,6 +5,7 @@ import { validateTaskSafety } from "./safety.js";
 import { MemoryOperitStore } from "./store.js";
 import { createMcpServer, REGISTERED_TOOLS, SERVER_NAME } from "./tools.js";
 import { TASK_TYPES, type SubmitTaskInput, type TaskType } from "./types.js";
+import type { TaskStatus } from "./types.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT || 8787);
@@ -145,6 +146,43 @@ app.get("/api/status", (req, res) => {
   }
 
   res.json({ ok: true, device: store.getStatus(deviceId) });
+});
+
+app.post("/api/clear-current-task", (req, res) => {
+  if (!req.body || typeof req.body !== "object") {
+    jsonError(res, 400, "json body is required");
+    return;
+  }
+
+  const body = req.body as Record<string, unknown>;
+  const deviceId = body.deviceId ?? body.device_id;
+  if (typeof deviceId !== "string" || !deviceId) {
+    jsonError(res, 400, "deviceId is required");
+    return;
+  }
+
+  const status = typeof body.status === "string" ? body.status : "timeout";
+  const allowedStatuses = new Set([
+    "done",
+    "error",
+    "found_target",
+    "stopped",
+    "timeout",
+    "stopped_by_stop_text",
+    "blocked_by_safety",
+  ]);
+  if (!allowedStatuses.has(status)) {
+    jsonError(res, 400, "status must be a terminal task status");
+    return;
+  }
+
+  const result = store.clearCurrentTask({
+    deviceId,
+    status: status as TaskStatus,
+    reason: typeof body.reason === "string" ? body.reason : "manual cleanup",
+  });
+
+  res.json({ ok: true, ...result });
 });
 
 app.post("/mcp", async (req: Request, res: Response) => {

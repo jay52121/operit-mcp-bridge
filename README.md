@@ -121,6 +121,18 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8787/api/report-status" -Method POST -C
 Invoke-RestMethod "http://127.0.0.1:8787/api/status?device_id=phone1"
 ```
 
+### Clear Stuck Current Task
+
+Force-finish the current running task for a device. Use this when a non-terminal monitor update leaves `currentTask` running during manual testing.
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8787/api/clear-current-task" -Method POST -ContentType "application/json" -Body '{
+  "deviceId": "phone1",
+  "status": "timeout",
+  "reason": "manual cleanup"
+}'
+```
+
 The response includes:
 
 - `online`: true when `lastSeenAt` is within 30 seconds.
@@ -144,6 +156,7 @@ Tools:
 - `get_operit_screen_summary`
 - `start_page_monitor`
 - `stop_operit_task`
+- `clear_current_task`
 - `operit_get_next_task`
 - `operit_report_status`
 
@@ -173,6 +186,7 @@ Operit-side tools:
 
 - `operit_get_next_task`: input `{ "deviceId": "phone1" }`; returns `{ "ok": true, "type": "none" }` or `{ "ok": true, "type": "task", "task": ... }` and marks the task `running`.
 - `operit_report_status`: input `{ "deviceId": "phone1", "taskId": "...", "status": "done", "payload": {} }`; updates `latestStatus`, `currentTask`, heartbeat, and task history.
+- `clear_current_task`: input `{ "deviceId": "phone1", "status": "timeout", "reason": "manual cleanup" }`; force-finishes the current running task and moves it to history.
 
 Real ChatGPT integration needs a public HTTPS MCP endpoint. Local development can use a tunnel. Formal use should deploy this bridge to a persistent HTTPS service such as Render, Railway, Fly.io, or a VPS.
 
@@ -254,6 +268,8 @@ stopped
 blocked_by_safety
 stopped_by_stop_text
 timeout
+found_target
+page_monitor_running
 ```
 
 ## Safety

@@ -23,6 +23,11 @@ export interface OperitStore {
   submitBlockedTask(input: SubmitTaskInput, message: string): OperitTask;
   getNextTask(deviceId: string): OperitTask | null;
   reportStatus(report: Omit<OperitStatusReport, "receivedAt">): OperitStatusReport;
+  clearCurrentTask(input: {
+    deviceId: string;
+    status: TaskStatus;
+    reason?: string;
+  }): { cleared: boolean; task: OperitTask | null; status: OperitStatusReport };
   getStatus(deviceId: string): DeviceSnapshot;
   touchDevice(deviceId: string): DeviceState;
 }
@@ -126,6 +131,41 @@ export class MemoryOperitStore implements OperitStore {
     }
 
     return savedReport;
+  }
+
+  clearCurrentTask(input: {
+    deviceId: string;
+    status: TaskStatus;
+    reason?: string;
+  }): { cleared: boolean; task: OperitTask | null; status: OperitStatusReport } {
+    this.touchDevice(input.deviceId);
+
+    const receivedAt = new Date().toISOString();
+    const current = this.currentTask.get(input.deviceId) ?? null;
+    const savedReport: OperitStatusReport = {
+      deviceId: input.deviceId,
+      taskId: current?.taskId,
+      status: input.status,
+      message: input.reason,
+      payload: input.reason ? { reason: input.reason } : {},
+      receivedAt,
+    };
+
+    this.latestStatus.set(input.deviceId, savedReport);
+
+    if (!current) {
+      return { cleared: false, task: null, status: savedReport };
+    }
+
+    const finished: OperitTask = {
+      ...current,
+      status: input.status,
+      updatedAt: receivedAt,
+    };
+    this.currentTask.delete(input.deviceId);
+    this.pushHistory(input.deviceId, finished);
+
+    return { cleared: true, task: finished, status: savedReport };
   }
 
   getStatus(deviceId: string): DeviceSnapshot {

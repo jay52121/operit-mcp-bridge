@@ -26,9 +26,20 @@ export const REGISTERED_TOOLS = [
   "get_operit_screen_summary",
   "start_page_monitor",
   "stop_operit_task",
+  "clear_current_task",
   "operit_get_next_task",
   "operit_report_status",
 ] as const;
+
+const terminalStatusSchema = z.enum([
+  "done",
+  "error",
+  "found_target",
+  "stopped",
+  "timeout",
+  "stopped_by_stop_text",
+  "blocked_by_safety",
+]);
 
 export function createMcpServer(store: OperitStore): McpServer {
   const server = new McpServer({
@@ -128,6 +139,24 @@ export function createMcpServer(store: OperitStore): McpServer {
   );
 
   server.registerTool(
+    "clear_current_task",
+    {
+      title: "Clear Current Task",
+      description:
+        "Force-finish the current running task for a device and move it into task history.",
+      inputSchema: {
+        deviceId: z.string().min(1),
+        status: terminalStatusSchema.default("timeout"),
+        reason: z.string().default("manual cleanup"),
+      },
+    },
+    async ({ deviceId, status, reason }) => {
+      const result = store.clearCurrentTask({ deviceId, status, reason });
+      return asTextJson({ ok: true, ...result });
+    },
+  );
+
+  server.registerTool(
     "operit_get_next_task",
     {
       title: "Operit Get Next Task",
@@ -162,6 +191,7 @@ export function createMcpServer(store: OperitStore): McpServer {
           "found_target",
           "stopped",
           "timeout",
+          "stopped_by_stop_text",
           "page_monitor_running",
         ]),
         message: z.string().optional(),
